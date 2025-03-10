@@ -74,7 +74,7 @@ const initialCameraPosition = new THREE.Vector3(0, 5, -5);
 const initialCameraTarget    = new THREE.Vector3(0, 5, -12.5);
 
 const camera = new THREE.PerspectiveCamera(
-  75,
+  60,
   window.innerWidth / window.innerHeight,
   0.1,
   2000
@@ -85,7 +85,7 @@ camera.lookAt(initialCameraTarget);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.copy(initialCameraTarget);
 controls.minDistance = 2;
-controls.maxDistance = 60;
+controls.maxDistance = 12.5
 controls.update();
 
 // Inizializzazione del composer per il post-processing
@@ -103,6 +103,9 @@ window.addEventListener('resize', () => {
   composer.setSize(window.innerWidth, window.innerHeight);
 });
 
+const pmremGenerator = new THREE.PMREMGenerator(renderer);
+pmremGenerator.compileEquirectangularShader();
+
 // Carica l'HDR per il background
 new RGBELoader()
   .setDataType(THREE.FloatType)
@@ -110,6 +113,7 @@ new RGBELoader()
     hdrTexture.mapping = THREE.EquirectangularReflectionMapping;
     scene.background = hdrTexture;
   });
+
 
 // ===========================
 // STELLE
@@ -152,6 +156,8 @@ windowLight.position.set(-20, 5, -12.5);
 windowLight.lookAt(new THREE.Vector3(-15, 5, -12.5));
 scene.add(windowLight);
 
+
+
 // ===========================
 // AUDIO
 // ===========================
@@ -176,12 +182,13 @@ const guiParams = {
   dirLightIntensity: dirLight.intensity,
   planetLightIntensity: 1.2,
   musicVolume: 0.5,
-  showOrbits: true,          // Controllo per mostrare/nascondere le orbite
+  showOrbits: true,  
+  sunRotationSpeed: 0.002,
   sunDynamicIntensity: 1.0,  // Fattore dinamico per il sole
-  simulationSpeed: 1,        // Fattore moltiplicativo per le velocità di rivoluzione/rotazione
-  bloomStrength: 0.5         // Intensità del bloom
-};
+  simulationSpeed: 0.01,   // Fattore moltiplicativo per le velocità di rivoluzione/rotazione
+  bloomStrength: 0.5,        // Intensità del bloom
 
+};
 const mediaFolder = gui.addFolder("Media Controls");
 mediaFolder.add({
   playVideos: () => {
@@ -214,8 +221,7 @@ gui.add(guiParams, 'dirLightIntensity', 0, 2).name('Dir Light')
    .onChange(v => dirLight.intensity = v);
 gui.add(guiParams, 'musicVolume', 0, 1).name('Music Volume')
    .onChange(v => planetMusic.setVolume(v));
-gui.add(guiParams, 'showOrbits').name('Mostra Orbite');
-gui.add(guiParams, 'sunDynamicIntensity', 0.5, 2).name('Intensità Sole');
+gui.add(guiParams, 'showOrbits').name('Show Orbits');
 gui.add(guiParams, 'simulationSpeed', 0.1, 5).name('Simulation Speed');
 gui.add(guiParams, 'bloomStrength', 0, 3).name('Bloom Strength')
    .onChange(v => bloomPass.strength = v);
@@ -506,17 +512,17 @@ corridor.add(garden);
 const frameMargin = 0.3;           // Sporgenza della cornice attorno al giardinetto
 const gardenFrameThickness = 0.2;    // Spessore (altezza) della cornice
 
-// Coordinate del giardinetto in world (si suppone che il pivot sia nell'angolo inferiore sinistro)
+// Coordinate del giardinetto in world
 const gardenXMin = -18.5;
-const gardenXMax = -15.5;  // -18.5 + 3
+const gardenXMax = -15.5;  
 const gardenZMin = -25;
 const gardenZMax = 0;
-const shortenAmount = 0.5; // ad esempio 2 unità in meno
+const shortenAmount = 0.5;
 
 // Calcola le coordinate esterne della cornice
 const outerXMin = gardenXMin - frameMargin;
 const outerXMax = gardenXMax + frameMargin;
-// Per il lato opposto, invece di usare gardenZMax + frameMargin, sottrai shortenAmount:
+// Per il lato opposto,
 const outerZMin = gardenZMin - frameMargin;
 const outerZMax = gardenZMax + frameMargin - shortenAmount;
 
@@ -549,8 +555,6 @@ const frameMesh = new THREE.Mesh(frameGeo, frameMat);
 
 // Ruota la cornice in modo che l'estrusione vada lungo l'asse Y
 frameMesh.rotation.x = -Math.PI / 2;
-
-// Posiziona la cornice in Y in modo che il bordo inferiore coincida con il giardinetto
 frameMesh.position.y = 0.1;
 
 // Calcola la lunghezza del giardinetto (25 unità) e sposta la cornice lungo Z
@@ -599,38 +603,8 @@ gltfLoader.load('3D_Model/natura/othonna_cerarioides_4k.gltf', (gltf) => {
 });
 
 // ===========================
-// AGGIUNTA DI UN NUOVO MODELLO 3D ("PIANTA3")
-// ===========================
-gltfLoader.load('3D_Model/Pianta3/tree_small_02_2k.gltf', (gltf) => {
-  const plant3 = gltf.scene;
-  plant3.scale.set(1, 1, 1);
-  // Posiziona il nuovo modello sopra la texture; regola la posizione in base al layout
-  plant3.position.set(-16.5, 0.2, -10);
-  // Ruota di 90° sull'asse Y per orientarlo correttamente
-  plant3.rotation.y = Math.PI / 2;
-  plant3.traverse(obj => {
-    if (obj.isMesh) {
-      obj.castShadow = true;
-      obj.receiveShadow = true;
-    }
-  });
-  corridor.add(plant3);
-});
-  gltfLoader.load('3D_Model/Pianta3/tree_small_02_2k.gltf', (gltf) => {
-    const plant3Duplicate = gltf.scene;
-    plant3Duplicate.scale.set(1, 1, 1);
-    // Posiziona il nuovo modello sopra la texture; regola la posizione in base al layout
-    plant3Duplicate.position.set(-16.5, 0.2, -13);
-    // Ruota di 90° sull'asse Y per orientarlo correttamente
-    plant3Duplicate.rotation.y = Math.PI / 2;
-    plant3Duplicate.traverse(obj => {
-      if (obj.isMesh) {
-        obj.castShadow = true;
-        obj.receiveShadow = true;
-      }
-    });
-    corridor.add(plant3Duplicate);
-  });
+
+  
   // AGGIUNTA DI UN NUOVO MODELLO "ROCCIA" E REGOLAZIONE DI "NATURA" E "PIANTA3"
 
 gltfLoader.load('3D_Model/roccia/namaqualand_boulder_02_2k.gltf', (gltf) => {
@@ -665,20 +639,7 @@ gltfLoader.load('3D_Model/natura/othonna_cerarioides_4k.gltf', (gltf) => {
   corridor.add(naturaDuplicate);
 });
 
-gltfLoader.load('3D_Model/Fiori/dandelion_01_4k.gltf', (gltf) => {
-  const plantShelf2 = gltf.scene;
-  plantShelf2.scale.set(1, 1, 1);
-  // Posizionata sopra il giardino e ruotata di 90° sull'asse Y
-  plantShelf2.position.set(-16, 0, -5);
-  plantShelf2.rotation.y = Math.PI / 2;
-  plantShelf2.traverse(obj => { 
-    if (obj.isMesh) { 
-      obj.castShadow = true; 
-      obj.receiveShadow = true; 
-    } 
-  });
-  corridor.add(plantShelf2);
-});
+
 
 gltfLoader.load('3D_Model/Quadro/fancy_picture_frame_02_4k.gltf', (gltf) => {
   const picture1 = gltf.scene;
@@ -728,22 +689,6 @@ gltfLoader.load('3D_Model/Divano1/Ottoman_01_4k.gltf', (gltf) => {
   });
   divani1Group.add(sofa1);
 });
-
-gltfLoader.load('3D_Model/Divano1/Ottoman_01_4k.gltf', (gltf) => {
-  const sofa2 = gltf.scene;
-  sofa2.scale.set(2.5, 2.5, 2.5);
-  // Posiziona il secondo divano (ad esempio, un po' dietro o più in basso rispetto al primo)
-  sofa2.position.set(14, 0, -15);
-  sofa2.rotation.y = Math.PI;
-  sofa2.traverse(obj => {
-    if (obj.isMesh) {
-      obj.castShadow = true;
-      obj.receiveShadow = true;
-    }
-  });
-  divani1Group.add(sofa2);
-});
-
 divani1Group.position.set(0, 0, 0);
 corridor.add(divani1Group)
 
@@ -795,6 +740,7 @@ function createDoorPivot() {
   const doorMat = new THREE.MeshStandardMaterial({ map: doorTex });
   const doorMesh = new THREE.Mesh(doorGeo, doorMat);
   doorMesh.position.set(3, 0, 0);
+  doorMesh.receiveShadow = true;
   doorMesh.castShadow = true;
   doorMesh.name = "doorMesh";
 
@@ -910,7 +856,6 @@ gltfLoader.load('3D_Model/Divano/sofa_02_4k.gltf', (gltf) => {
 // ===========================
 // SISTEMA SOLARE CON ORBITE, EFFETTI E INTERATTIVITÀ
 // ===========================
-
 // Creiamo il gruppo planetarium
 const planetarium = new THREE.Group();
 scene.add(planetarium);
@@ -1022,114 +967,6 @@ const orbitLines = [];
 // Modalità Gioco: la modalità di gioco determina se la telecamera segue l'astronave in terza persona.
 // In modalità gioco ( = true) l'utente controlla l'astronave; in modalità normale, la telecamera è libera.
 // ===========================
-
-// Variabile per gestire la modalità gioco e il game over
-let gameMode = false;
-let gameOver = false;
-
-// Costante gravitazionale per il Sole
-const G = 0.5;
-
-// Velocità della paparella
-const shipSpeed = 5;
-const velocity = new THREE.Vector3();
-
-// Velocità di rotazione (radians al secondo)
-const turnSpeed = 2.0;
-
-// Mappa dei tasti per il controllo (WASD, Q, E, SPACE e SHIFT)
-const keys = {
-  w: false,
-  a: false,
-  s: false,
-  d: false,
-  q: false, // ruota a sinistra (yaw)
-  e: false, // ruota a destra (yaw)
-  space: false, // per salire
-  shift: false  // per scendere
-};
-
-// Parametri per la camera follow (terza persona)
-const cameraFollowDistance = 4;  // distanza dalla paparella
-const cameraVerticalOffset = 2;    // altezza della camera sopra la paparella
-const smoothFactorPos = 0.1;       // smoothing per la posizione
-
-// Definizione della boundary a forma di cupola (dome)
-const domeBoundary = {
-  center: new THREE.Vector3(0, 20, -50),
-  radius: 20
-};
-
-// Pulsante per attivare/disattivare la modalità gioco
-const gameModeButton = document.createElement('button');
-gameModeButton.innerText = 'Entra in Gioco';
-gameModeButton.style.position = 'absolute';
-gameModeButton.style.top = '10px';
-gameModeButton.style.left = '10px';
-gameModeButton.style.padding = '10px';
-document.body.appendChild(gameModeButton);
-
-// Overlay per il Game Over
-const gameOverOverlay = document.createElement('div');
-gameOverOverlay.style.position = 'absolute';
-gameOverOverlay.style.top = '0';
-gameOverOverlay.style.left = '0';
-gameOverOverlay.style.width = '100%';
-gameOverOverlay.style.height = '100%';
-gameOverOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-gameOverOverlay.style.color = 'white';
-gameOverOverlay.style.fontSize = '48px';
-gameOverOverlay.style.display = 'flex';
-gameOverOverlay.style.justifyContent = 'center';
-gameOverOverlay.style.alignItems = 'center';
-gameOverOverlay.style.zIndex = '10';
-gameOverOverlay.style.display = 'none';
-gameOverOverlay.innerText = 'GAME OVER';
-document.body.appendChild(gameOverOverlay);
-
-// Pulsante per il reset del gioco
-const restartButton = document.createElement('button');
-restartButton.innerText = 'Ricomincia';
-restartButton.style.position = 'absolute';
-restartButton.style.top = '120px';
-restartButton.style.left = '10px';
-restartButton.style.padding = '10px';
-restartButton.style.fontSize = '16px';
-restartButton.style.display = 'none';
-document.body.appendChild(restartButton);
-
-// ===========================
-// FUNZIONE DI RESET DEL GIOCO
-// ===========================
-function resetGame() {
-  gameOver = false;
-  gameOverOverlay.style.display = 'none';
-  restartButton.style.display = 'none';
-  if (ship) {
-    // Posiziona la paparella all'ingresso della cupola e "spawnala" al contrario
-    ship.position.copy(domeBoundary.center);
-    ship.position.y = 2; // imposta manualmente l'altezza iniziale
-    // Sposta la paperella indietro lungo l'asse Z rispetto al centro della cupola
-    ship.position.z -= domeBoundary.radius * 0.5;
-    ship.rotation.y = Math.PI; // ruota di 180°
-    velocity.set(0, 0, 0);
-    ship.userData.boundingBox.setFromObject(ship);
-  }
-}
-
-restartButton.addEventListener('click', resetGame);
-
-// Gestione del click sul pulsante game mode
-gameModeButton.addEventListener('click', () => {
-  if (!gameOver) {
-    if (!gameMode) {
-      enterGameMode();
-    } else {
-      exitGameMode();
-    }
-  }
-});
-
 // ===========================
 // SISTEMA SOLARE: CREAZIONE MODULARE DEI PIANETI CON ORBITE VISIBILI
 // ===========================
@@ -1208,10 +1045,10 @@ function createAsteroidSphere(size = 0.3, widthSegments = 32, heightSegments = 3
 }
 
 function generateAsteroidBelt({
-  count = 500,
-  innerRadius = 8,
-  outerRadius = 9,
-  beltThickness = 1.5
+  count = 700,
+  innerRadius = 7,
+  outerRadius = 8,
+  beltThickness = 1.
 } = {}) {
   const beltGroup = new THREE.Group();
   
@@ -1240,14 +1077,14 @@ function generateAsteroidBelt({
 
 const asteroidBelt = generateAsteroidBelt({
   count: 600,
-  innerRadius: 8,
-  outerRadius: 9,
+  innerRadius: 7.5,
+  outerRadius: 8.3,
   beltThickness: 1.5
 });
 
 // Seconda cintura di asteroidi (perpendicolare)
 const perpendicularAsteroidBelt = generateAsteroidBelt({
-  count: 300,
+  count: 500,
   innerRadius: 7,
   outerRadius: 8,
   beltThickness: 1.5
@@ -1404,172 +1241,10 @@ function createExplosionEffect(position, size) {
   animateExplosion();
 }
 
-// ===========================
-// CARICAMENTO DEL MODELLO DELL'ASTRONAVE (PAPARELLA)
-// ===========================
-let ship; // Variabile globale per l'astronave
 
-const gltfLoader1 = new GLTFLoader();
-gltfLoader1.load('3D_Model/Paparella/rubber_duck_toy_4k.gltf', function(gltf) {
-  ship = gltf.scene;
-  // Scala ridotta per la paperella (terza persona)
-  ship.scale.set(0.2, 0.2, 0.2);
-  // La posizione iniziale verrà impostata in enterGameMode() o in resetGame()
-  ship.userData.boundingBox = new THREE.Box3().setFromObject(ship);
-  scene.add(ship);
-}, undefined, function(error) {
-  console.error('Errore nel caricamento del modello paparella:', error);
-});
 
-// ===========================
-// CONTROLLI DELL'ASTRONAVE IN GAME MODE (WASD, Q, E, SPACE, SHIFT)
-// ===========================
-window.addEventListener('keydown', (e) => {
-  let key = e.key.toLowerCase();
-  if(key === " ") key = "space"; // mappa lo spazio a "space"
-  if(key in keys) {
-    e.preventDefault();
-    keys[key] = true;
-  }
-});
+// RAYCASTER & INTERAZIONE CLICK )
 
-window.addEventListener('keyup', (e) => {
-  let key = e.key.toLowerCase();
-  if(key === " ") key = "space";
-  if(key in keys) {
-    e.preventDefault();
-    keys[key] = false;
-  }
-});
-
-// Funzione di aggiornamento della paparella in game mode
-function updateShip(deltaTime) {
-  if (!ship) return;
-  
-  // Gestione della rotazione con i tasti "q" (sinistra) ed "e" (destra)
-  if (keys.q) ship.rotation.y += turnSpeed * deltaTime;
-  if (keys.e) ship.rotation.y -= turnSpeed * deltaTime;
-  
-  // Calcola la direzione avanti in base alla rotazione attuale della paperella.
-  // Utilizziamo (0, 0, -1) per far muovere la paperella nella direzione "frontale"
-  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(ship.quaternion);
-  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(ship.quaternion);
-  
-  // Reset della velocità
-  velocity.set(0, 0, 0);
-  
-  // Movimento orizzontale: WASD
-  if (keys.w) velocity.add(forward);
-  if (keys.s) velocity.sub(forward);
-  if (keys.a) velocity.sub(right);
-  if (keys.d) velocity.add(right);
-  
-  // Movimento verticale: SPACE per salire, SHIFT per scendere
-  if (keys.space) velocity.y += 1;
-  if (keys.shift) velocity.y -= 1;
-  
-  if (velocity.length() > 0) {
-    velocity.normalize().multiplyScalar(shipSpeed * deltaTime);
-    ship.position.add(velocity);
-    ship.userData.boundingBox.setFromObject(ship);
-  }
-}
-
-// Funzione per applicare la gravità del Sole alla paparella
-function applyGravity(deltaTime) {
-  if(!ship) return;
-  
-  const shipPos = ship.getWorldPosition(new THREE.Vector3());
-  const sunPos = sunMesh.getWorldPosition(new THREE.Vector3());
-  const gravityDir = new THREE.Vector3().subVectors(sunPos, shipPos).normalize();
-  const distance = shipPos.distanceTo(sunPos);
-  const accelerationMagnitude = G / (distance * distance);
-  const acceleration = gravityDir.multiplyScalar(accelerationMagnitude);
-  
-  velocity.add(acceleration.multiplyScalar(deltaTime));
-  ship.position.add(velocity.clone().multiplyScalar(deltaTime));
-  ship.userData.boundingBox.setFromObject(ship);
-}
-
-// ===========================
-// FUNZIONE PER CONTROLLARE LE COLLISIONI
-// ===========================
-function checkShipCollisions() {
-  if(!ship) return;
-  const shipBB = ship.userData.boundingBox;
-  
-  // Collisione con asteroidi della prima cintura
-  asteroidBelt.children.slice().forEach(asteroid => {
-    const asteroidBB = new THREE.Box3().setFromObject(asteroid);
-    if(shipBB.intersectsBox(asteroidBB)) {
-      triggerGameOver("Collisione con asteroide");
-    }
-  });
-  
-  // Collisione con asteroidi della seconda cintura (perpendicolare)
-  perpendicularAsteroidBelt.children.slice().forEach(asteroid => {
-    const asteroidBB = new THREE.Box3().setFromObject(asteroid);
-    if(shipBB.intersectsBox(asteroidBB)) {
-      triggerGameOver("Collisione con asteroide (seconda cintura)");
-    }
-  });
-  
-  // Collisione con pianeti (incluso il Sole)
-  const allPlanets = [...clickablePlanets, sunMesh];
-  allPlanets.forEach(planet => {
-    const planetPos = planet.getWorldPosition(new THREE.Vector3());
-    const shipPos = ship.getWorldPosition(new THREE.Vector3());
-    const planetRadius = planet.geometry ? planet.geometry.parameters.radius : 1.5;
-    const shipRadius = 0.5; // regola in base al modello
-    if(planetPos.distanceTo(shipPos) < planetRadius + shipRadius) {
-      triggerGameOver(`Collisione con ${planet.name || 'pianeta'}`);
-    }
-  });
-}
-
-function triggerGameOver(reason) {
-  console.log("Game Over!", reason);
-  gameOver = true;
-  gameOverOverlay.style.display = 'flex';
-  restartButton.style.display = 'block'; // mostra il pulsante di restart
-  // Qui puoi eventualmente fermare ulteriori input o suoni
-}
-
-// ===========================
-// FUNZIONE PER VINCOLARE LA POSIZIONE DELLA PAPARELLA ALL'INTERNO DELLA CUPOLA
-// ===========================
-function constrainShipToDome(boundary) {
-  if (!ship) return;
-  const pos = ship.position;
-  const offset = new THREE.Vector3().subVectors(pos, boundary.center);
-  if (offset.length() > boundary.radius) {
-    offset.normalize().multiplyScalar(boundary.radius);
-    pos.copy(boundary.center.clone().add(offset));
-    ship.position.copy(pos);
-    ship.userData.boundingBox.setFromObject(ship);
-  }
-}
-
-function updateCamera() {
-  if (!ship) return;
-  
-  // Calcola la direzione attuale della paparella
-  const forward = new THREE.Vector3();
-  ship.getWorldDirection(forward);
-  
-  // Calcola la posizione target per la telecamera (dietro e sopra la paparella)
-  const desiredCamPos = ship.position.clone()
-    .sub(forward.clone().multiplyScalar(cameraFollowDistance))
-    .add(new THREE.Vector3(0, cameraVerticalOffset, 0));
-  
-  // Easing per uno spostamento fluido
-  camera.position.lerp(desiredCamPos, smoothFactorPos);
-  camera.lookAt(ship.position);
-}
-
-// ===========================
-// RAYCASTER & INTERAZIONE CLICK (già presente nel codice)
-// ===========================
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 let transitioning = false;
@@ -1577,19 +1252,35 @@ let transitioning = false;
 window.addEventListener('click', onMouseClick, false);
 function onMouseClick(e) {
   if (transitioning) return;
+
   mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
   mouse.y = - (e.clientY / window.innerHeight) * 2 + 1;
+
   raycaster.setFromCamera(mouse, camera);
-  const objectsToCheck = [doorPivot, ...clickablePlanets];
+
+  const objectsToCheck = [
+    doorPivot,
+    apolloPanel, // Assicurati che questi siano i giusti oggetti mesh
+    sputnikPanel,
+    ...clickablePlanets
+  ];
+
   const intersects = raycaster.intersectObjects(objectsToCheck, true);
+
+  console.log("Oggetti intercettati:", intersects.map(i => i.object.name)); // Debug
+
   if (intersects.length > 0) {
     const obj = intersects[0].object;
+    console.log("Hai cliccato su:", obj.name); // Debug
+
     if (obj.name === "doorMesh" || obj.name === "doorPivot") {
       openDoor();
     } else if (obj.name === "apolloPanel") {
+      console.log("Attivando focus su Apollo!");
       videoSputnik.pause();
       focusOnMedia(apolloPanel, videoApollo);
     } else if (obj.name === "sputnikPanel") {
+      console.log("Attivando focus su Sputnik!");
       videoApollo.pause();
       focusOnMedia(sputnikPanel, videoSputnik);
     } else {
@@ -1598,86 +1289,82 @@ function onMouseClick(e) {
   }
 }
 
-// ===========================
+
 // FUNZIONI DI TRANSIZIONE E FOCUS (già presenti)
-// ===========================
+
 function focusOnMedia(panel, videoElement) {
   transitioning = true;
+
   const panelPos = new THREE.Vector3();
   panel.getWorldPosition(panelPos);
+
   controls.target.copy(panelPos);
+
   const currentDistance = camera.position.distanceTo(panelPos);
   const newDistance = Math.max(currentDistance - 5, 1);
   const direction = camera.position.clone().sub(panelPos).normalize();
   const targetPosition = panelPos.clone().add(direction.multiplyScalar(newDistance));
   const startPosition = camera.position.clone();
+
   const duration = 1500;
   let startTime = null;
+
   function animateFocus(timestamp) {
     if (!startTime) startTime = timestamp;
     const elapsed = timestamp - startTime;
     const t = Math.min(elapsed / duration, 1);
+
     camera.position.lerpVectors(startPosition, targetPosition, t);
     controls.update();
+
     if (t < 1) {
       requestAnimationFrame(animateFocus);
     } else {
       transitioning = false;
-      videoElement.play();
+
+      // Avvia il video solo dopo che lo zoom è terminato
+      setTimeout(() => {
+        videoElement.play().catch(error => {
+          console.warn("Autoplay bloccato, utente deve interagire:", error);
+        });
+      }, 500);
     }
   }
+
   requestAnimationFrame(animateFocus);
 }
 
-function focusOnPlanet(planetMesh) {
-  transitioning = true;
-  const planetPos = new THREE.Vector3();
-  planetMesh.getWorldPosition(planetPos);
-  const startPos = camera.position.clone();
-  const direction = planetPos.clone().sub(camera.position).normalize();
-  const targetPos = planetPos.clone().sub(direction.multiplyScalar(3));
-  controls.target.copy(planetPos);
-  const duration = 1500;
-  let startTime = null;
-  function animPlanet(ts) {
-    if (!startTime) startTime = ts;
-    const elapsed = ts - startTime;
-    let t = Math.min(elapsed / duration, 1);
-    t = t * t * (3 - 2 * t);
-    if (t < 1) {
-      camera.position.lerpVectors(startPos, targetPos, t);
-      controls.update();
-      requestAnimationFrame(animPlanet);
-    } else {
-      transitioning = false;
-    }
-  }
-  requestAnimationFrame(animPlanet);
-}
 
 function transitionToPlanetarium() {
   transitioning = true;
   planetMusic.play();
-  const finalCamPos = new THREE.Vector3(0, 7, -35);
-  const finalTarget = new THREE.Vector3(0, 7, -35);
-  camera.up.set(0, 1, 0);
+  
+  const duration = 2000; // 2 secondi
   const startPos = camera.position.clone();
-  controls.target.copy(finalTarget);
-  const duration = 1500;
+  const startTarget = controls.target.clone();
+  
+  // Definisci la posizione finale della camera e il nuovo target
+  const finalCamPos = new THREE.Vector3(0, 7, -35);
+  const finalTarget = new THREE.Vector3(0, 7, -40);
+  
   let startTime = null;
+  
   function animTrans(ts) {
     if (!startTime) startTime = ts;
     const elapsed = ts - startTime;
-    let t = Math.min(elapsed / duration, 1);
-    t = t * t * (3 - 2 * t);
+    const t = Math.min(elapsed / duration, 1);
+    
+    camera.position.lerpVectors(startPos, finalCamPos, t);
+    controls.target.lerpVectors(startTarget, finalTarget, t);
+    controls.update();
+    
     if (t < 1) {
-      camera.position.lerpVectors(startPos, finalCamPos, t);
-      controls.update();
       requestAnimationFrame(animTrans);
     } else {
       transitioning = false;
     }
   }
+  
   requestAnimationFrame(animTrans);
 }
 
@@ -1733,85 +1420,19 @@ function animateDoor() {
     doorPivot.rotation.y = doorRotation * maxDoorRotation;
   }
 }
-
-// ===========================
-// FUNZIONI PER MODALITÀ GIOCO (CAMBIO CAMERA E CONTROLLI)
-// ===========================
-/* 
-  Nuovo approccio per la camera follow:
-  - Usa ship.getWorldDirection() per determinare il verso in cui la paparella sta andando.
-  - La posizione target della camera viene calcolata come:
-      ship.position - (forward * cameraFollowDistance) + (0, cameraVerticalOffset, 0)
-  - Questo assicura che la camera rimanga dietro la paparella e segua le sue inversioni in maniera coerente.
-  - Inoltre, per "spawnare" la paparella al contrario, si imposta la sua rotazione iniziale a Math.PI.
-*/
-function enterGameMode() {
-  if (!ship) {
-    console.warn("Il modello della paparella non è ancora caricato.");
-    return;
-  }
-  
-  // Posiziona la paparella all'ingresso della cupola e "spawnala" al contrario
-  ship.position.copy(domeBoundary.center);
-  ship.position.set(0, 2, -40);
-  ship.rotation.y = Math.PI; // Ruota la paperella di 180° per farla spawnare al contrario
-  
-  // Posiziona subito la telecamera dietro la paperella
-  const forward = new THREE.Vector3();
-  ship.getWorldDirection(forward);
-  const desiredCamPos = ship.position.clone()
-    .sub(forward.clone().multiplyScalar(cameraFollowDistance))
-    .add(new THREE.Vector3(0, cameraVerticalOffset, 0));
-  camera.position.copy(desiredCamPos);
-  camera.lookAt(ship.position);
-  
-  ship.userData.boundingBox.setFromObject(ship);
-
-  gameMode = true;
-  controls.enabled = false;
-  
-  gameModeButton.innerText = 'Esci dal Gioco';
-}
-
-function exitGameMode() {
-  gameMode = false;
-  controls.enabled = true;
-  
-  // Ripristina la camera nella scena con posizione iniziale
-  camera.position.copy(initialCameraPosition);
-  controls.target.copy(initialCameraTarget);
-  
-  gameModeButton.innerText = 'Entra in Gioco';
-}
-
-// ===========================
-// LOOP DI ANIMAZIONE
-// ===========================
 let lastTime = performance.now();
+
+// Main animation loop
 function animate() {
   requestAnimationFrame(animate);
-
+  
   const currentTime = performance.now();
   const deltaTime = (currentTime - lastTime) * 0.001;
   lastTime = currentTime;
 
-  if (gameMode && !gameOver) {
-    updateShip(deltaTime);
-    applyGravity(deltaTime);
-    checkShipCollisions();
-    
-    // Vincola la paparella all'interno della cupola
-    constrainShipToDome(domeBoundary);
-
-    // Aggiorna la camera in maniera fluida
-    updateCamera();
-  }
-
-  // Rotazione della cintura di asteroidi attorno al Sole
   asteroidBelt.rotation.y += 0.001 * guiParams.simulationSpeed;
   perpendicularAsteroidBelt.rotation.y += 0.001 * guiParams.simulationSpeed;
 
-  // Aggiornamento dei pianeti (rotazione e rivoluzione)
   solarSystem.children.forEach(child => {
     if (child.userData && child.userData.angle !== undefined) {
       child.userData.angle += child.userData.revolutionSpeed * guiParams.simulationSpeed;
@@ -1826,7 +1447,6 @@ function animate() {
     }
   });
 
-  // Aggiornamento orbita della Luna
   solarSystem.traverse(obj => {
     if (obj.name === "MoonOrbit" && obj.userData) {
       obj.userData.angle = (obj.userData.angle || 0) + (obj.userData.revolutionSpeed * guiParams.simulationSpeed);
@@ -1834,7 +1454,6 @@ function animate() {
     }
   });
 
-  // Aggiornamento degli asteroidi: rotazione interna e controllo collisioni per perdere orbita
   const updateAsteroidGroup = (group) => {
     group.children.slice().forEach(asteroid => {
       asteroid.rotation.x += asteroid.userData.rotationSpeed.x;
@@ -1853,6 +1472,7 @@ function animate() {
       });
     });
   };
+  
   updateAsteroidGroup(asteroidBelt);
   updateAsteroidGroup(perpendicularAsteroidBelt);
 
@@ -1864,4 +1484,5 @@ function animate() {
   controls.update();
   composer.render();
 }
+
 animate();
